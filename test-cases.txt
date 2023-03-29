@@ -1,0 +1,8 @@
+16 1024 2 0    0 0 0 assets/input/gcc_trace.txt
+16 1024 1 0    0 0 0 assets/input/perl_trace.txt
+16 1024 2 0    0 1 0 assets/input/gcc_trace.txt
+16 1024 2 0    0 2 0 assets/input/vortex_trace.txt
+16 1024 2 8192 4 0 0 assets/input/gcc_trace.txt
+16 1024 1 8192 4 0 0 assets/input/go_trace.txt
+16 1024 2 8192 4 0 1 assets/input/gcc_trace.txt
+16 1024 1 8192 4 0 1 assets/input/compress_trace.txt
