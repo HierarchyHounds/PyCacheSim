@@ -1,13 +1,12 @@
 import math
 
-
 class StorageBlock(object):
 	def __init__(self, address, index, tag):
 		self.address = address
 		self.index = index
 		self.tag = tag
 		self.dirty = False
-		# self.valid = True
+		self.valid = True
 
 	def set_dirty(self):
 		self.dirty = True
@@ -16,7 +15,7 @@ class StorageBlock(object):
 		return self.dirty
 
 class Cache:
-	def __init__(self, size, associativity, block_size, PolicyClass, inclusion_property):
+	def __init__(self, size, associativity, block_size, PolicyClass, inclusion_property, lower_cache=None, debugger=None):
 		self.num_sets = size // (associativity * block_size)
 		self.memory = [[] for _ in range(self.num_sets)]
 		self.index_bits = int(math.log2(self.num_sets))
@@ -27,6 +26,8 @@ class Cache:
 		self.block_size = block_size
 		self.policy = PolicyClass(self.num_sets, associativity)
 		self.inclusion_property = inclusion_property
+		self.debugger = debugger
+		self.lower_cache = lower_cache
 
 		self.reads = 0
 		self.read_misses = 0
@@ -41,41 +42,22 @@ class Cache:
 		tag = address >> self.index_bits  # Remaining bits are tag bits
 		return index, tag
 
-	def get_block(self, address):
-		"""
-		Retrieves a block from the cache based on the address.
-		Returns the block if it exists, otherwise returns None.
-		"""
-		index, tag = self.calculate_index_tag(address)
-
+	def find_block(self, index, tag):
 		for block in self.memory[index]:
 			if block.tag == tag:
 				return block
-
-		# for line_id, block in enumerate(self.memory[index]):
-		# 	print(block.data)
-		# 	if block.tag == tag:
-		# 		return True ,line_id
-
 		return None
-		# raise NotImplementedError("get_block function must be implemented in the Cache class")
 
-	def create_block(self, address):
+	def create_and_insert_block(self, address):
 		index, tag = self.calculate_index_tag(address)
-		new_block = StorageBlock(address, index, tag)
-		index = new_block.index
-		self.memory[index].append(new_block)
-		return new_block
+		block = StorageBlock(address, index, tag)
+		index = block.index
+		self.memory[index].append(block)
+		return block
 
 	def remove_block(self, block):
 		index = block.index
 		self.memory[index].remove(block)
-
-	# def is_full(self):
-	# 	for memory_set in self.memory:
-	# 		if len(memory_set) < self.associativity:
-	# 			return False
-	# 	return True
 
 	def is_set_full(self, index):
 		return len(self.memory[index]) >= self.associativity
@@ -93,76 +75,77 @@ class Cache:
 			return 0
 		return (self.read_misses + self.write_misses) / (self.reads + self.writes)
 
-	def access(self, operation, address, lower_cache=None):
-		block = self.get_block(address)
+	def access(self, operation, address):
+		index, tag = self.calculate_index_tag(address)
+		self.debugger.operation(operation, address, tag, index)
 
-		if block is not None:
-			# Cache hit
-			self.policy.update(block)
-			if operation == 'w':
-				block.set_dirty()
-				self.writes += 1
-			else:
-				self.reads += 1
+		block = self.find_block(index, tag)
+
+		if block:
+			return self.handle_cache_hit(operation, block)
 		else:
-			# Cache miss
-			if operation == 'w':
-				self.write_misses += 1
-				self.writes += 1
-			else:
-				self.read_misses += 1
-				self.reads += 1
+			return self.handle_cache_miss(operation, address, index)
 
-			if lower_cache:
-				# Access the lower level cache
-				lower_block = lower_cache.access(operation, address)
-
-				if lower_block:
-					# Evict a block from the current set if it's full
-					if self.is_set_full(lower_block.index):
-						evicted_block = self.policy.evict(lower_block.index)
-						self.remove_block(evicted_block)
-						if evicted_block.is_dirty():
-							self.writebacks += 1
-
-					# Handle inclusion_property properties and L1-L2 interaction
-					if self.inclusion_property == 1:  # inclusive
-						# Copy the block from L2 into L1
-						copied_block = self.create_block(lower_block.address)
-						self.policy.insert(copied_block)
-						if operation == 'w':
-							copied_block.set_dirty()
-					elif self.inclusion_property == 0:  # non-inclusive
-						# Load the block from L2 into L1
-						new_block = self.create_block(address)
-						self.policy.insert(new_block)
-						if operation == 'w':
-							new_block.set_dirty()
-				else:
-					# Load the block from memory if there is a miss in L2
-					self.memory_accesses += 1
-					new_block = self.create_block(address)
-					index, _ = self.calculate_index_tag(address)
-					self.policy.insert(new_block)
-					if operation == 'w':
-						new_block.set_dirty()
-
-			else:
-				# Load the block from memory and insert it into the cache
-				self.memory_accesses += 1
-
-				# Evict a block from the current set if it's full
-				index, _ = self.calculate_index_tag(address)
-				if self.is_set_full(index):
-					evicted_block = self.policy.evict(index)
-					self.remove_block(evicted_block)
-					if evicted_block.is_dirty():
-						self.writebacks += 1
-						self.memory_accesses += 1
-
-				new_block = self.create_block(address)
-				self.policy.insert(new_block)
-				if operation == 'w':
-					new_block.set_dirty()
-
+	def handle_cache_hit(self, operation, block):
+		if operation == 'r':
+			self.reads += 1
+			self.debugger.log(f"read : {block.address:x} (tag {block.tag:x}, index {block.index:x})")
+		elif operation == 'w':
+			self.writes += 1
+			self.debugger.log(f"write : {block.address:x} (tag {block.tag:x}, index {block.index:x})")
+			block.set_dirty()
+			self.debugger.log("set dirty")
+		self.policy.update(block)
+		self.debugger.policyUpdate()
 		return block
+
+	def handle_cache_miss(self, operation, address, index):
+		self.debugger.log("miss")
+		if operation == 'r':
+			self.reads += 1
+			self.read_misses += 1
+		elif operation == 'w':
+			self.writes += 1
+			self.write_misses += 1
+
+		block = self.load_block_from_memory(operation, address, index)
+		if operation == 'w':
+			block.set_dirty()
+			self.debugger.log("set dirty")
+		return block
+
+	def load_block_from_memory(self, operation, address, index):
+		if self.lower_cache:
+			block = self.lower_cache.access(operation, address)
+			if not block:
+				return None
+
+			if self.is_set_full(index):
+				evicted_block = self.policy.evict(index)
+				self.debugger.victim(evicted_block)
+				self.remove_block(evicted_block)
+				if evicted_block.is_dirty():
+					self.writebacks += 1
+
+			if self.inclusion_property == 1:  # inclusive
+				copied_block = self.create_and_insert_block(block.address)
+				self.policy.insert(copied_block)
+				self.debugger.policyUpdate()
+				return copied_block
+			elif self.inclusion_property == 0:  # non-inclusive
+				new_block = self.create_and_insert_block(address)
+				self.policy.insert(new_block)
+				self.debugger.policyUpdate()
+				return new_block
+		else:
+			if self.is_set_full(index):
+				evicted_block = self.policy.evict(index)
+				self.debugger.victim(evicted_block)
+				self.remove_block(evicted_block)
+				if evicted_block.is_dirty():
+					self.writebacks += 1
+
+			new_block = self.create_and_insert_block(address)
+			self.policy.insert(new_block)
+			self.debugger.policyUpdate()
+			return new_block

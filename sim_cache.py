@@ -2,6 +2,7 @@ import argparse
 import os
 from cache.Cache import Cache
 from policies import fifo, lru, optimal
+from utils.Debugger import Debugger
 
 def main():
 	parser = argparse.ArgumentParser(description="Cache Simulator")
@@ -13,8 +14,10 @@ def main():
 	parser.add_argument("replacement_policy", type=int, choices=[0, 1, 2], help="Replacement policy (0 for LRU, 1 for FIFO, 2 for optimal)")
 	parser.add_argument("inclusion_property", type=int, choices=[0, 1], help="Inclusion property (0 for non-inclusive, 1 for inclusive)")
 	parser.add_argument("trace_file", type=str, help="Full name of trace file including any extensions")
+	parser.add_argument("--debug", action=argparse.BooleanOptionalAction, help="Generate debug output (default: False)")
 
 	args = parser.parse_args()
+	Debugger.debug = args.debug
 
 	# check if L1_SIZE, L1_ASSOC, L2_SIZE, L2_ASSOC are all positive integers
 	if args.l1_size <= 0 or args.l1_assoc <= 0 or args.l2_size < 0 or args.l2_assoc < 0:
@@ -63,31 +66,36 @@ def main():
 	elif args.replacement_policy == 2:
 		PolicyClass = optimal.Optimal
 
+	policyClassName = Debugger.policyClassName = PolicyClass.__name__
+
 	trace_file_basename = os.path.basename(args.trace_file)
 
 	print("===== Simulator configuration =====")
 
-	print(f"BLOCKSIZE:\t\t{args.blocksize}")
-	print(f"L1_SIZE:\t\t{args.l1_size}")
-	print(f"L1_ASSOC:\t\t{args.l1_assoc}")
-	print(f"L2_SIZE:\t\t{args.l2_size}")
-	print(f"L2_ASSOC:\t\t{args.l2_assoc}")
-	print(f"REPLACEMENT POLICY:\t{PolicyClass.__name__}")
-	print(f"INCLUSION PROPERTY:\t{inclusion_property_name}")
-	print(f"trace_file:\t\t{trace_file_basename}")
+	print("BLOCKSIZE:\t\t", args.blocksize)
+	print("L1_SIZE:\t\t", args.l1_size)
+	print("L1_ASSOC:\t\t", args.l1_assoc)
+	print("L2_SIZE:\t\t", args.l2_size)
+	print("L2_ASSOC:\t\t", args.l2_assoc)
+	print("REPLACEMENT POLICY:\t", policyClassName)
+	print("INCLUSION PROPERTY:\t", inclusion_property_name)
+	print("trace_file:\t\t", trace_file_basename)
 
 	# Create L1 and L2 cache instances with the appropriate configurations
-	l1_cache = Cache(args.l1_size, args.l1_assoc, args.blocksize, PolicyClass, args.inclusion_property)
 	if args.l2_size > 0:
-		l2_cache = Cache(args.l2_size, args.l2_assoc, args.blocksize, PolicyClass, args.inclusion_property)
+		l2_cache = Cache(args.l2_size, args.l2_assoc, args.blocksize, PolicyClass, args.inclusion_property, debugger=Debugger(prefix="L2"))
 	else:
 		l2_cache = None
+	l1_cache = Cache(args.l1_size, args.l1_assoc, args.blocksize, PolicyClass, args.inclusion_property, lower_cache=l2_cache, debugger=Debugger(prefix="L1"))
+
+	debugger = Debugger()
 
 	# Access the cache with L1 and L2 instances
 	with open(args.trace_file, "r") as trace_file:
 		for line in trace_file:
 			operation, address = line.split()
-			l1_cache.access(operation, int(address, 16), l2_cache)
+			debugger.operationStart(operation, address)
+			l1_cache.access(operation, int(address, 16))
 
 	print("===== L1 contents =====")
 	l1_cache.print_contents()
