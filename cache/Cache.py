@@ -1,23 +1,37 @@
 import math
 
 class StorageBlock(object):
-	def __init__(self, address, index, tag):
+	def __init__(self, debugger):
+		self.address = None
+		self.index = None
+		self.tag = None
+		self.dirty = False
+		self.valid = False
+		self.debugger = debugger
+
+	def set_dirty(self):
+		self.dirty = True
+		self.debugger.log("set dirty")
+		return self
+
+	def invalidate(self):
+		self.valid = False
+		return self
+
+	def store(self, address, index, tag):
 		self.address = address
 		self.index = index
 		self.tag = tag
 		self.dirty = False
 		self.valid = True
-
-	def set_dirty(self):
-		self.dirty = True
-
-	def is_dirty(self):
-		return self.dirty
+		return self
 
 class Cache:
 	def __init__(self, size, associativity, block_size, PolicyClass, inclusion_property, lower_cache=None, upper_cache=None, debugger=None):
 		self.num_sets = size // (associativity * block_size)
-		self.memory = [[] for _ in range(self.num_sets)]
+		# self.memory = [[] for _ in range(self.num_sets)]
+		self.memory = [[StorageBlock(debugger) for _ in range(associativity)]
+					   for _ in range(self.num_sets)]
 		self.index_bits = int(math.log2(self.num_sets))
 		self.offset_bits = int(math.log2(block_size))
 
@@ -54,22 +68,74 @@ class Cache:
 		tag = address >> self.index_bits
 		return index, tag
 
-	def find_block(self, index, tag):
+	def increment_miss_counter(self, operation):
+		if operation == 'r':
+			self.read_misses += 1
+		elif operation == 'w':
+			self.write_misses += 1
+		else:
+			raise ValueError(f"Invalid operation: {operation}")
+
+	def increment_counters(self, operation=None, memory_access=False, writeback=False):
+		# TODO: writeback always increments memory_accesses?
+		if memory_access:
+			self.memory_accesses += 1
+		if writeback:
+			self.writebacks += 1
+		if operation == 'r':
+			self.reads += 1
+		elif operation == 'w':
+			self.writes += 1
+
+	# search for a given tag at a particular index
+	# returns the block if found, None otherwise
+	def search(self, index, tag):
 		for block in self.memory[index]:
-			if block.tag == tag:
+			if block.tag == tag and block.valid:
 				return block
 		return None
 
-	def create_and_insert_block(self, address):
+	# adds `address` to cache
+	# evicts a block if necessary
+	# returns the block that was updated
+	def store(self, address):
 		index, tag = self.calculate_index_tag(address)
-		block = StorageBlock(address, index, tag)
-		index = block.index
-		self.memory[index].append(block)
-		return block
+		# check all blocks in memory[index]
+		# if any are invalid, replace
+		for block in self.memory[index]:
+			if not block.valid:
+				self.debugger.victim(None)
+				return block.store(address, index, tag)
 
-	def remove_block(self, block):
-		index = block.index
-		self.memory[index].remove(block)
+		# no invalid blocks; evict
+		block = self.evict(index)
+		return block.store(address, index, tag)
+
+	def evict(self, index):
+		evicted_block = self.policy.evict(index)
+		self.debugger.victim(evicted_block)
+		evicted_block.valid = False
+		if evicted_block.dirty:
+			self.increment_counters(memory_access=True, writeback=True)
+
+		# inclusive cache
+		if self.inclusion_property == 1:
+			if self.upper_cache:
+				self.upper_cache.invalidate(evicted_block.address)
+
+		return evicted_block
+
+	def invalidate(self, address):
+		index, tag = self.calculate_index_tag(address)
+		block = self.search(index, tag)
+		if block is None:
+			return None
+
+		# if block is dirty, increment writebacks
+		if block.dirty:
+			self.increment_counters(memory_access=True, writeback=True)
+
+		return block.invalidate()
 
 	def is_set_full(self, index):
 		return len(self.memory[index]) >= self.associativity
@@ -91,74 +157,36 @@ class Cache:
 	def access(self, operation, address):
 		index, tag = self.calculate_index_tag(address)
 		self.debugger.operation(operation, address, tag, index)
+		self.increment_counters(operation=operation)
 
-		block = self.find_block(index, tag)
-
+		# block exists, cache hit
+        # no eviction occurs here
+		block = self.search(index, tag)
 		if block:
-			return self.handle_cache_hit(operation, block)
+			self.debugger.log("hit")
+			self.policy.update(block)
+			self.debugger.policyUpdate()
+
 		else:
-			return self.handle_cache_miss(operation, address, index)
+			# cache miss - block does not exist
+			self.debugger.log("miss")
+			self.increment_miss_counter(operation)
 
-	def handle_cache_hit(self, operation, block):
-		if operation == 'r':
-			self.reads += 1
-			self.debugger.log(f"read : {block.address:x} (tag {block.tag:x}, index {block.index:x})")
-		elif operation == 'w':
-			self.writes += 1
-			self.debugger.log(f"write : {block.address:x} (tag {block.tag:x}, index {block.index:x})")
-			block.set_dirty()
-			self.debugger.log("set dirty")
-		self.policy.update(block)
-		self.debugger.policyUpdate()
-		return block
+			# if lower cache exists, use it to load the block
+			if self.lower_cache:
+				self.lower_cache.access(operation, address)
+			# otherwise load the block from memory
+			else:
+				# block loaded from memory, so increment memory accesses
+				self.increment_counters(memory_access=True)
 
-	def handle_cache_miss(self, operation, address, index):
-		self.debugger.log("miss")
-		if operation == 'r':
-			self.reads += 1
-			self.read_misses += 1
-		elif operation == 'w':
-			self.writes += 1
-			self.write_misses += 1
+			# block loaded; now add it to cache
+			block = self.store(address)
+			self.policy.insert(block)
+			self.debugger.policyUpdate()
 
-		block = self.load_block_from_memory(operation, address, index)
+		# for write operations, set dirty bit
 		if operation == 'w':
 			block.set_dirty()
-			self.debugger.log("set dirty")
+
 		return block
-
-	def load_block_from_memory(self, operation, address, index):
-		if self.lower_cache:
-			block = self.lower_cache.access(operation, address)
-			if not block:
-				return None
-
-			if self.is_set_full(index):
-				evicted_block = self.policy.evict(index)
-				self.debugger.victim(evicted_block)
-				self.remove_block(evicted_block)
-				if evicted_block.is_dirty():
-					self.writebacks += 1
-
-			if self.inclusion_property == 1:  # inclusive
-				copied_block = self.create_and_insert_block(block.address)
-				self.policy.insert(copied_block)
-				self.debugger.policyUpdate()
-				return copied_block
-			elif self.inclusion_property == 0:  # non-inclusive
-				new_block = self.create_and_insert_block(address)
-				self.policy.insert(new_block)
-				self.debugger.policyUpdate()
-				return new_block
-		else:
-			if self.is_set_full(index):
-				evicted_block = self.policy.evict(index)
-				self.debugger.victim(evicted_block)
-				self.remove_block(evicted_block)
-				if evicted_block.is_dirty():
-					self.writebacks += 1
-
-			new_block = self.create_and_insert_block(address)
-			self.policy.insert(new_block)
-			self.debugger.policyUpdate()
-			return new_block
