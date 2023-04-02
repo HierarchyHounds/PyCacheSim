@@ -98,32 +98,31 @@ class Cache:
 	# adds `address` to cache
 	# evicts a block if necessary
 	# returns the block that was updated
-	def store(self, address):
-		index, tag = self.calculate_index_tag(address)
+	def evict(self, index):
 		# check all blocks in memory[index]
 		# if any are invalid, replace
 		for block in self.memory[index]:
 			if not block.valid:
 				self.debugger.victim(None)
-				return block.store(address, index, tag)
+				return block
 
 		# no invalid blocks; evict
-		block = self.evict(index)
-		return block.store(address, index, tag)
-
-	def evict(self, index):
-		evicted_block = self.policy.evict(index)
-		self.debugger.victim(evicted_block)
-		evicted_block.valid = False
-		if evicted_block.dirty:
-			self.increment_counters(memory_access=True, writeback=True)
+		block = self.policy.evict(index)
+		self.debugger.victim(block)
+		self.invalidate(block.address)
+		# if block.dirty:
+		# 	self.increment_counters(writeback=True)
+		# 	if self.lower_cache:
+		# 		self.lower_cache.access('w', block.address)
+		# 	else:
+		# 		self.increment_counters(memory_access=True)
 
 		# inclusive cache
 		if self.inclusion_property == 1:
 			if self.upper_cache:
-				self.upper_cache.invalidate(evicted_block.address)
+				self.upper_cache.invalidate(block.address)
 
-		return evicted_block
+		return block
 
 	def invalidate(self, address):
 		index, tag = self.calculate_index_tag(address)
@@ -133,7 +132,11 @@ class Cache:
 
 		# if block is dirty, increment writebacks
 		if block.dirty:
-			self.increment_counters(memory_access=True, writeback=True)
+			self.increment_counters(writeback=True)
+			if self.lower_cache:
+				self.lower_cache.access('w', block.address)
+			else:
+				self.increment_counters(memory_access=True)
 
 		return block.invalidate()
 
@@ -178,16 +181,19 @@ class Cache:
 			self.debugger.log("miss")
 			self.increment_miss_counter(operation)
 
-			# if lower cache exists, use it to load the block
+			# evict to make room for new block
+			block = self.evict(index)
+
+			# if lower cache exists, copy from it
 			if self.lower_cache:
-				self.lower_cache.access(operation, address)
-			# otherwise load the block from memory
+				self.lower_cache.access('r', address)
+			# otherwise read the block from memory
 			else:
-				# block loaded from memory, so increment memory accesses
+				# block read from memory, so increment memory accesses
 				self.increment_counters(memory_access=True)
 
 			# block loaded; now add it to cache
-			block = self.store(address)
+			block.store(address, index, tag)
 			self.policy.insert(block)
 			self.debugger.policyUpdate()
 
