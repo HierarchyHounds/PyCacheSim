@@ -28,6 +28,8 @@ class Cache:
 		self.inclusion_property = inclusion_property
 		self.debugger = debugger
 		self.lower_cache = lower_cache
+		if debugger:
+			debugger.offset_bits = self.offset_bits
 
 		self.reads = 0
 		self.read_misses = 0

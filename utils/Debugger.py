@@ -11,6 +11,7 @@ class Debugger:
 	def __init__(self, prefix=""):
 		self.prefix = prefix
 		self.actionCounter = 0
+		self.offset_bits = 0
 
 	def log(self, *args):
 		if not Debugger.debug: return
@@ -23,20 +24,31 @@ class Debugger:
 		print(f"# {self.actionCounter} : {getOperationName(operation)} {address}")
 
 	def operation(self, operation, address, tag, index):
-		if Debugger.debug:
-			print(self.prefix, getOperationName(operation), f": {address:x} (tag {tag:x}, index {index})")
+		if not Debugger.debug: return
+
+		# Remove offset bits
+		if self.offset_bits:
+			address = address >> self.offset_bits
+			address = address << self.offset_bits
+
+		print(self.prefix, getOperationName(operation), f": {address:x} (tag {tag:x}, index {index})")
 
 	def policyUpdate(self):
 		if not Debugger.debug: return
 		print(self.prefix, "update", Debugger.policyClassName)
 
 	def victim(self, block):
-		if Debugger.debug:
-			if block == None:
-				print(self.prefix, "victim: none")
-				return
-			if block.dirty:
-				status = "dirty"
-			else:
-				status = "clean"
-			print(self.prefix, f"victim: {block.address:x} (tag {block.tag:x}, index {block.index}, {status})")
+		if not Debugger.debug: return
+		if block == None:
+			print(self.prefix, "victim: none")
+			return
+		if block.dirty:
+			status = "dirty"
+		else:
+			status = "clean"
+
+				# Remove offset bits
+		if self.offset_bits:
+			address = block.address >> self.offset_bits << self.offset_bits
+
+		print(self.prefix, f"victim: {address:x} (tag {block.tag:x}, index {block.index}, {status})")
