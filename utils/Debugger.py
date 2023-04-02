@@ -3,31 +3,32 @@ def getOperationName(operation):
 		return "read"
 	if operation == "w":
 		return "write"
-	return "INVALID"
-
+	raise ValueError(f"Invalid operation: {operation}")
 
 class Debugger:
+	debug = False
+
 	def __init__(self, prefix=""):
 		self.prefix = prefix
 		self.actionCounter = 0
 
 	def log(self, *args):
-		if Debugger.debug:
-			print(self.prefix, *args)
+		if not Debugger.debug: return
+		print(self.prefix, *args)
 
 	def operationStart(self, operation, address):
-		if Debugger.debug:
-			self.actionCounter += 1
-			print("----------------------------------------")
-			print(f"{self.actionCounter} : {getOperationName(operation)} {address}")
+		if not Debugger.debug: return
+		self.actionCounter += 1
+		print("----------------------------------------")
+		print(f"# {self.actionCounter} : {getOperationName(operation)} {address}")
 
 	def operation(self, operation, address, tag, index):
 		if Debugger.debug:
 			print(self.prefix, getOperationName(operation), f": {address:x} (tag {tag:x}, index {index})")
 
 	def policyUpdate(self):
-		if Debugger.debug:
-			print(self.prefix, "update", Debugger.policyClassName)
+		if not Debugger.debug: return
+		print(self.prefix, "update", Debugger.policyClassName)
 
 	def victim(self, block):
 		if Debugger.debug:

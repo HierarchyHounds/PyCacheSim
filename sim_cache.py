@@ -97,17 +97,19 @@ def main():
 			debugger.operationStart(operation, address)
 			l1_cache.access(operation, int(address, 16))
 
+	print_results(l1_cache, l2_cache)
+
+
+def print_results(l1_cache, l2_cache):
+	memory_traffic = l1_cache.memory_accesses
+
 	print("===== L1 contents =====")
 	l1_cache.print_contents()
 
 	if l2_cache:
+		memory_traffic += l2_cache.memory_accesses
 		print("\n===== L2 contents =====")
 		l2_cache.print_contents()
-	else:
-		l2_cache = Cache(1, 1, 1, PolicyClass, 0)
-
-	# Calculate memory traffic
-	memory_traffic = l1_cache.memory_accesses + l2_cache.memory_accesses
 
 	print("===== Simulation results (raw) =====")
 	print(f"a. number of L1 reads:\t\t{l1_cache.reads}")
@@ -116,12 +118,22 @@ def main():
 	print(f"d. number of L1 write misses:\t{l1_cache.write_misses}")
 	print(f"e. L1 miss rate:\t\t{l1_cache.get_miss_rate():.6f}")
 	print(f"f. number of L1 writebacks:\t{l1_cache.writebacks}")
-	print(f"g. number of L2 reads:\t\t{l2_cache.reads}")
-	print(f"h. number of L2 read misses:\t{l2_cache.read_misses}")
-	print(f"i. number of L2 writes:\t\t{l2_cache.writes}")
-	print(f"j. number of L2 write misses:\t{l2_cache.write_misses}")
-	print(f"k. L2 miss rate:\t\t{l2_cache.get_miss_rate()}")
-	print(f"l. number of L2 writebacks:\t{l2_cache.writebacks}")
+
+	if l2_cache:
+		print(f"g. number of L2 reads:\t\t{l2_cache.reads}")
+		print(f"h. number of L2 read misses:\t{l2_cache.read_misses}")
+		print(f"i. number of L2 writes:\t\t{l2_cache.writes}")
+		print(f"j. number of L2 write misses:\t{l2_cache.write_misses}")
+		print(f"k. L2 miss rate:\t\t{l2_cache.get_miss_rate():.6f}")
+		print(f"l. number of L2 writebacks:\t{l2_cache.writebacks}")
+	else:
+		print("g. number of L2 reads:\t\t0")
+		print("h. number of L2 read misses:\t0")
+		print("i. number of L2 writes:\t\t0")
+		print("j. number of L2 write misses:\t0")
+		print("k. L2 miss rate:\t\t0")
+		print("l. number of L2 writebacks:\t0")
+
 	print(f"m. total memory traffic:\t{memory_traffic}")
 
 if __name__ == "__main__":

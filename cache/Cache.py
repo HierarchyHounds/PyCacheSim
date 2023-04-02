@@ -37,9 +37,12 @@ class Cache:
 		self.memory_accesses = 0
 
 	def calculate_index_tag(self, address):
-		address = address >> self.offset_bits  # Remove offset bits
-		index = address & ((1 << self.index_bits) - 1)  # Extract index bits
-		tag = address >> self.index_bits  # Remaining bits are tag bits
+		# Remove offset bits
+		address = address >> self.offset_bits
+		# Extract index bits
+		index = address & ((1 << self.index_bits) - 1)
+		# Remaining bits are tag bits
+		tag = address >> self.index_bits
 		return index, tag
 
 	def find_block(self, index, tag):
@@ -66,14 +69,15 @@ class Cache:
 		for i, memory_set in enumerate(self.memory):
 			print(f"Set\t{i}:", end="\t")
 			for block in memory_set:
-				dirty_flag = "D" if block.is_dirty() else " "
+				dirty_flag = "D" if block.dirty else " "
 				print(f"{block.tag:6x} {dirty_flag}", end="  ")
 			print()
 
 	def get_miss_rate(self):
 		if self.reads + self.writes == 0:
 			return 0
-		return (self.read_misses + self.write_misses) / (self.reads + self.writes)
+		miss_rate = (self.read_misses + self.write_misses) / (self.reads + self.writes)
+		return round(miss_rate, 6)
 
 	def access(self, operation, address):
 		index, tag = self.calculate_index_tag(address)
