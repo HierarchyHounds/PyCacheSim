@@ -49,14 +49,6 @@ def main():
 			exit(1)
 
 	# `REPLACEMENT_POLICY`:\tPositive integer. 0 for LRU, 1 for FIFO, 2 for optimal.
-	# `INCLUSION_PROPERTY`:\tPositive integer. 0 for non-inclusive, 1 for inclusive.
-
-	inclusion_property_name = None
-	if args.inclusion_property == 0:
-		inclusion_property_name = "non-inclusive"
-	elif args.inclusion_property == 1:
-		inclusion_property_name = "inclusive"
-
 	# Create the appropriate replacement policy
 	PolicyClass = None
 	if args.replacement_policy == 0:
@@ -66,20 +58,9 @@ def main():
 	elif args.replacement_policy == 2:
 		PolicyClass = optimal.Optimal
 
-	policyClassName = Debugger.policyClassName = PolicyClass.__name__
+	args.policyClassName = Debugger.policyClassName = PolicyClass.__name__
 
-	trace_file_basename = os.path.basename(args.trace_file)
-
-	print("===== Simulator configuration =====")
-
-	print("BLOCKSIZE:\t\t", args.blocksize)
-	print("L1_SIZE:\t\t", args.l1_size)
-	print("L1_ASSOC:\t\t", args.l1_assoc)
-	print("L2_SIZE:\t\t", args.l2_size)
-	print("L2_ASSOC:\t\t", args.l2_assoc)
-	print("REPLACEMENT POLICY:\t", policyClassName)
-	print("INCLUSION PROPERTY:\t", inclusion_property_name)
-	print("trace_file:\t\t", trace_file_basename)
+	print_config(args)
 
 	# Create L1 and L2 cache instances with the appropriate configurations
 	l1_cache = Cache(args.l1_size, args.l1_assoc, args.blocksize, PolicyClass, args.inclusion_property, debugger=Debugger(prefix="L1"))
@@ -98,6 +79,23 @@ def main():
 
 	print_results(l1_cache, l2_cache)
 
+def print_config(args):
+	# `INCLUSION_PROPERTY`:\tPositive integer. 0 for non-inclusive, 1 for inclusive.
+	inclusion_property_name = None
+	if args.inclusion_property == 0:
+		inclusion_property_name = "non-inclusive"
+	elif args.inclusion_property == 1:
+		inclusion_property_name = "inclusive"
+	trace_file_basename = os.path.basename(args.trace_file)
+	print("===== Simulator configuration =====")
+	print("BLOCKSIZE:\t\t", args.blocksize)
+	print("L1_SIZE:\t\t", args.l1_size)
+	print("L1_ASSOC:\t\t", args.l1_assoc)
+	print("L2_SIZE:\t\t", args.l2_size)
+	print("L2_ASSOC:\t\t", args.l2_assoc)
+	print("REPLACEMENT POLICY:\t", args.policyClassName)
+	print("INCLUSION PROPERTY:\t", inclusion_property_name)
+	print("trace_file:\t\t", trace_file_basename)
 
 def print_results(l1_cache, l2_cache):
 	memory_traffic = l1_cache.memory_accesses
@@ -107,7 +105,7 @@ def print_results(l1_cache, l2_cache):
 
 	if l2_cache:
 		memory_traffic += l2_cache.memory_accesses
-		print("\n===== L2 contents =====")
+		print("===== L2 contents =====")
 		l2_cache.print_contents()
 
 	print("===== Simulation results (raw) =====")
@@ -123,7 +121,7 @@ def print_results(l1_cache, l2_cache):
 		print(f"h. number of L2 read misses:\t{l2_cache.read_misses}")
 		print(f"i. number of L2 writes:\t\t{l2_cache.writes}")
 		print(f"j. number of L2 write misses:\t{l2_cache.write_misses}")
-		print(f"k. L2 miss rate:\t\t{l2_cache.get_miss_rate():.6f}")
+		print(f"k. L2 miss rate:\t\t{l2_cache.get_miss_rate(read_operations_only=True):.6f}")
 		print(f"l. number of L2 writebacks:\t{l2_cache.writebacks}")
 	else:
 		print("g. number of L2 reads:\t\t0")

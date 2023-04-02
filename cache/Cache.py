@@ -148,7 +148,13 @@ class Cache:
 				print(f"{block.tag:6x} {dirty_flag}", end="  ")
 			print()
 
-	def get_miss_rate(self):
+	def get_miss_rate(self, read_operations_only=False):
+		if read_operations_only:
+			if self.reads == 0:
+				return 0
+			miss_rate = self.read_misses / self.reads
+			return round(miss_rate, 6)
+
 		if self.reads + self.writes == 0:
 			return 0
 		miss_rate = (self.read_misses + self.write_misses) / (self.reads + self.writes)
