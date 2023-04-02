@@ -15,7 +15,7 @@ class StorageBlock(object):
 		return self.dirty
 
 class Cache:
-	def __init__(self, size, associativity, block_size, PolicyClass, inclusion_property, lower_cache=None, debugger=None):
+	def __init__(self, size, associativity, block_size, PolicyClass, inclusion_property, lower_cache=None, upper_cache=None, debugger=None):
 		self.num_sets = size // (associativity * block_size)
 		self.memory = [[] for _ in range(self.num_sets)]
 		self.index_bits = int(math.log2(self.num_sets))
@@ -27,7 +27,6 @@ class Cache:
 		self.policy = PolicyClass(self.num_sets, associativity)
 		self.inclusion_property = inclusion_property
 		self.debugger = debugger
-		self.lower_cache = lower_cache
 		if debugger:
 			debugger.offset_bits = self.offset_bits
 
@@ -37,6 +36,14 @@ class Cache:
 		self.write_misses = 0
 		self.writebacks = 0
 		self.memory_accesses = 0
+
+		# establish cache hierarchy
+		self.lower_cache = lower_cache
+		self.upper_cache = upper_cache
+		if self.lower_cache:
+			self.lower_cache.upper_cache = self
+		if self.upper_cache:
+			self.upper_cache.lower_cache = self
 
 	def calculate_index_tag(self, address):
 		# Remove offset bits

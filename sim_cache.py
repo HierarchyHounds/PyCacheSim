@@ -82,11 +82,10 @@ def main():
 	print("trace_file:\t\t", trace_file_basename)
 
 	# Create L1 and L2 cache instances with the appropriate configurations
+	l1_cache = Cache(args.l1_size, args.l1_assoc, args.blocksize, PolicyClass, args.inclusion_property, debugger=Debugger(prefix="L1"))
+	l2_cache = None
 	if args.l2_size > 0:
-		l2_cache = Cache(args.l2_size, args.l2_assoc, args.blocksize, PolicyClass, args.inclusion_property, debugger=Debugger(prefix="L2"))
-	else:
-		l2_cache = None
-	l1_cache = Cache(args.l1_size, args.l1_assoc, args.blocksize, PolicyClass, args.inclusion_property, lower_cache=l2_cache, debugger=Debugger(prefix="L1"))
+		l2_cache = Cache(args.l2_size, args.l2_assoc, args.blocksize, PolicyClass, args.inclusion_property, upper_cache=l1_cache, debugger=Debugger(prefix="L2"))
 
 	debugger = Debugger()
 
