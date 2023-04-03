@@ -52,3 +52,22 @@ class Debugger:
 			address = block.address >> self.offset_bits << self.offset_bits
 
 		print(self.prefix, f"victim: {address:x} (tag {block.tag:x}, index {block.index}, {status})")
+
+	def invalidated(self, block, writeDirectlyToMemory=False):
+		if not Debugger.debug: return
+		if block == None:
+			print(self.prefix, "invalidated: none")
+			return
+		if block.dirty:
+			status = "dirty"
+		else:
+			status = "clean"
+
+		# Remove offset bits
+		if self.offset_bits:
+			address = block.address >> self.offset_bits << self.offset_bits
+
+		print(self.prefix, f"invalidated: {address:x} (tag {block.tag:x}, index {block.index}, {status})")
+
+		if block.dirty and writeDirectlyToMemory:
+			print(self.prefix, "writeback to main memory directly")

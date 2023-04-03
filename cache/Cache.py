@@ -87,10 +87,11 @@ class Cache:
 		# no invalid blocks; evict
 		block = self.policy.evict(index)
 		self.debugger.victim(block)
-		self.invalidate(block.address)
+		self.flush(block)
 
 		# inclusive cache
 		if self.inclusion_property == 1:
+			# if upper cache exists, invalidate block there
 			if self.upper_cache:
 				self.upper_cache.invalidate(block.address)
 
@@ -102,15 +103,24 @@ class Cache:
 		if block is None:
 			return None
 
-		# if block is dirty, increment writebacks
-		if block.dirty:
-			self.increment_counters(writeback=True)
-			if self.lower_cache:
-				self.lower_cache.access('w', block.address)
-			else:
-				self.increment_counters(memory_access=True)
-
+		writeDirectlyToMemory = block.dirty and self.inclusion_property == 1 and self.lower_cache is not None
+		self.debugger.invalidated(block, writeDirectlyToMemory)
+		self.flush(block, writeDirectlyToMemory)
 		return block.invalidate()
+
+	def flush(self, block, writeDirectlyToMemory=False):
+		if not block.dirty: return block
+
+		self.increment_counters(writeback=True)
+
+		# if lower cache exists, write to it unless writeDirectlyToMemory flag is set
+		if self.lower_cache and not writeDirectlyToMemory:
+			self.lower_cache.access('w', block.address)
+		else:
+			self.increment_counters(memory_access=True)
+
+		block.dirty = False
+		return block
 
 	def access(self, operation, address):
 		index, tag = self.calculate_index_tag(address)
