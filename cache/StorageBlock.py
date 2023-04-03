@@ -12,8 +12,9 @@ class StorageBlock(object):
 		self.debugger.log("set dirty")
 		return self
 
-	def invalidate(self):
+	def invalidate(self, writeDirectlyToMemory=False):
 		self.valid = False
+		self.debugger.invalidated(self, writeDirectlyToMemory)
 		return self
 
 	def store(self, address, index, tag):

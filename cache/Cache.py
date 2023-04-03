@@ -52,7 +52,6 @@ class Cache:
 			raise ValueError(f"Invalid operation: {operation}")
 
 	def increment_counters(self, operation=None, memory_access=False, writeback=False):
-		# TODO: writeback always increments memory_accesses?
 		if memory_access:
 			self.memory_accesses += 1
 		if writeback:
@@ -100,13 +99,12 @@ class Cache:
 	def invalidate(self, address):
 		index, tag = self.calculate_index_tag(address)
 		block = self.search(index, tag)
-		if block is None:
-			return None
+		if block is None: return
 
 		writeDirectlyToMemory = block.dirty and self.inclusion_property == 1 and self.lower_cache is not None
-		self.debugger.invalidated(block, writeDirectlyToMemory)
+		block.invalidate(writeDirectlyToMemory)
 		self.flush(block, writeDirectlyToMemory)
-		return block.invalidate()
+		return block
 
 	def flush(self, block, writeDirectlyToMemory=False):
 		if not block.dirty: return block
