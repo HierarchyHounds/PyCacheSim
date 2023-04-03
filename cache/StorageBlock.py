@@ -2,7 +2,7 @@ class StorageBlock(object):
 	def __init__(self, debugger):
 		self.address = None
 		self.index = None
-		self.tag = None
+		self.tag = 0
 		self.dirty = False
 		self.valid = False
 		self.debugger = debugger

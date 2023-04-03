@@ -71,3 +71,12 @@ class Debugger:
 
 		if block.dirty and writeDirectlyToMemory:
 			print(self.prefix, "writeback to main memory directly")
+
+	def print_cache_set(self, cache, index):
+		if not Debugger.debug: return
+		print(self.prefix, "cache dump:", f"Set {index}:", end=" ")
+		memory_set = cache.memory[index]
+		for block in memory_set:
+			dirty_flag = "D" if block.dirty else " "
+			print(f"{block.tag:6x} {dirty_flag}  ", end="")
+		print()
