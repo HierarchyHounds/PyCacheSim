@@ -101,12 +101,12 @@ def print_results(l1_cache, l2_cache):
 	memory_traffic = l1_cache.memory_accesses
 
 	print("===== L1 contents =====")
-	l1_cache.print_contents()
+	print(l1_cache.get_contents(), end="")
 
 	if l2_cache:
 		memory_traffic += l2_cache.memory_accesses
 		print("===== L2 contents =====")
-		l2_cache.print_contents()
+		print(l2_cache.get_contents(), end="")
 
 	print("===== Simulation results (raw) =====")
 	print(f"a. number of L1 reads:\t\t{l1_cache.reads}")

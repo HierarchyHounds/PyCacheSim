@@ -162,13 +162,15 @@ class Cache:
 
 		return block
 
-	def print_contents(self):
+	def get_contents(self):
+		contents = ""
 		for i, memory_set in enumerate(self.memory):
-			print(f"Set\t{i}:", end="\t")
+			contents += f"Set\t{i}:\t"
 			for block in memory_set:
 				dirty_flag = "D" if block.dirty else " "
-				print(f"{block.tag:6x} {dirty_flag}", end="  ")
-			print()
+				contents += f"{block.tag:6x} {dirty_flag}  "
+			contents += "\n"
+		return contents
 
 	def get_miss_rate(self, read_operations_only=False):
 		if read_operations_only:
