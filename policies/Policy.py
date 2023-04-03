@@ -7,6 +7,9 @@ class Policy:
     def insert(self, block):
         raise NotImplementedError("Not implemented!")
 
+    def remove(self, block):
+        raise NotImplementedError("Not implemented!")
+
     def update(self, block):
         raise NotImplementedError("Not implemented!")
 

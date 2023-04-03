@@ -87,6 +87,7 @@ class Cache:
 		block = self.policy.evict(index)
 		self.debugger.victim(block)
 		self.flush(block)
+		block.valid = False
 
 		# inclusive cache
 		if self.inclusion_property == 1:
@@ -103,6 +104,7 @@ class Cache:
 
 		writeDirectlyToMemory = block.dirty and self.inclusion_property == 1 and self.lower_cache is not None
 		block.invalidate(writeDirectlyToMemory)
+		self.policy.remove(block)
 		self.flush(block, writeDirectlyToMemory)
 		return block
 

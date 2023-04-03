@@ -14,6 +14,10 @@ class Optimal(Policy):
         index = block.index
         self.cache_sets[index].append(block)
 
+    def remove(self, block):
+        index = block.index
+        self.cache_sets[index].remove(block)
+
     def update(self, block):
         index = block.index
         self.cache_sets[index].remove(block)
