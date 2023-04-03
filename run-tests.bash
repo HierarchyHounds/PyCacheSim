@@ -46,31 +46,31 @@ function run_test_case {
 	output_file=$OUTPUT_DIRECTORY/output$i.txt
 	debug_output_file=$OUTPUT_DIRECTORY/debug$i.txt
 	python sim_cache.py $line >$OUTPUT_DIRECTORY/output$i.txt || exit $?
-	printf "Output:\t$OUTPUT_DIRECTORY/output$i.txt\n"
+	printf "Output:\t$OUTPUT_DIRECTORY/output$i.txt\t\t"
 
 	# if validation file exists, compare output
 	validation_file=assets/output/validation$i.txt
 	test -f $validation_file && {
-		printf "Comparing against $validation_file... "
+		printf "Comparing against $validation_file...\t"
 		diff_file=$OUTPUT_DIRECTORY/diff-$i.txt
-		diff -wy $output_file $validation_file >$diff_file && printf_green "Match.\n" && rm $diff_file || printf_red "Mismatch. See $diff_file\n"
+		diff -wy --strip-trailing-cr $output_file $validation_file >$diff_file && printf_green "Match.\n" && rm $diff_file || printf_red "Mismatch. See $diff_file\n"
 	}
 
 	# if debug is enabled, run the test case with debug output
 	test $DEBUG = true && {
 		python sim_cache.py $line --debug >$OUTPUT_DIRECTORY/debug$i.txt || exit $?
-		printf "Debug:\t$OUTPUT_DIRECTORY/debug$i.txt\n"
+		printf "Debug:\t$OUTPUT_DIRECTORY/debug$i.txt\t\t"
 		# if debug validation file exists, compare debug output
 		debug_validation_file=assets/debug/debug$i.txt
 		test -f assets/debug/debug$i.txt && {
-			printf "Comparing against $debug_validation_file... "
+			printf "Comparing against $debug_validation_file...\t\t"
 			diff_file=$OUTPUT_DIRECTORY/debug-diff-$i.txt
-			diff -wy --speed-large-files $debug_output_file $debug_validation_file >$diff_file && printf_green "Match.\n" && rm $diff_file || printf_red "Mismatch. See $diff_file\n"
+			diff -wy --strip-trailing-cr $debug_output_file $debug_validation_file >$diff_file && printf_green "Match.\n" && rm $diff_file || printf_red "Mismatch. See $diff_file\n"
 		}
 	}
 
 	i=$((i + 1))
-	printf "\n"
+	printf "\n\n"
 }
 
 function printf_green {

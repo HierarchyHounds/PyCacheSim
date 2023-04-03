@@ -1,30 +1,5 @@
 import math
-
-class StorageBlock(object):
-	def __init__(self, debugger):
-		self.address = None
-		self.index = None
-		self.tag = None
-		self.dirty = False
-		self.valid = False
-		self.debugger = debugger
-
-	def set_dirty(self):
-		self.dirty = True
-		self.debugger.log("set dirty")
-		return self
-
-	def invalidate(self):
-		self.valid = False
-		return self
-
-	def store(self, address, index, tag):
-		self.address = address
-		self.index = index
-		self.tag = tag
-		self.dirty = False
-		self.valid = True
-		return self
+from cache.StorageBlock import StorageBlock
 
 class Cache:
 	def __init__(self, size, associativity, block_size, PolicyClass, inclusion_property, lower_cache=None, upper_cache=None, debugger=None):
@@ -87,6 +62,9 @@ class Cache:
 		elif operation == 'w':
 			self.writes += 1
 
+	def is_set_full(self, index):
+		return len(self.memory[index]) >= self.associativity
+
 	# search for a given tag at a particular index
 	# returns the block if found, None otherwise
 	def search(self, index, tag):
@@ -110,12 +88,6 @@ class Cache:
 		block = self.policy.evict(index)
 		self.debugger.victim(block)
 		self.invalidate(block.address)
-		# if block.dirty:
-		# 	self.increment_counters(writeback=True)
-		# 	if self.lower_cache:
-		# 		self.lower_cache.access('w', block.address)
-		# 	else:
-		# 		self.increment_counters(memory_access=True)
 
 		# inclusive cache
 		if self.inclusion_property == 1:
@@ -139,29 +111,6 @@ class Cache:
 				self.increment_counters(memory_access=True)
 
 		return block.invalidate()
-
-	def is_set_full(self, index):
-		return len(self.memory[index]) >= self.associativity
-
-	def print_contents(self):
-		for i, memory_set in enumerate(self.memory):
-			print(f"Set\t{i}:", end="\t")
-			for block in memory_set:
-				dirty_flag = "D" if block.dirty else " "
-				print(f"{block.tag:6x} {dirty_flag}", end="  ")
-			print()
-
-	def get_miss_rate(self, read_operations_only=False):
-		if read_operations_only:
-			if self.reads == 0:
-				return 0
-			miss_rate = self.read_misses / self.reads
-			return round(miss_rate, 6)
-
-		if self.reads + self.writes == 0:
-			return 0
-		miss_rate = (self.read_misses + self.write_misses) / (self.reads + self.writes)
-		return round(miss_rate, 6)
 
 	def access(self, operation, address):
 		index, tag = self.calculate_index_tag(address)
@@ -202,3 +151,23 @@ class Cache:
 			block.set_dirty()
 
 		return block
+
+	def print_contents(self):
+		for i, memory_set in enumerate(self.memory):
+			print(f"Set\t{i}:", end="\t")
+			for block in memory_set:
+				dirty_flag = "D" if block.dirty else " "
+				print(f"{block.tag:6x} {dirty_flag}", end="  ")
+			print()
+
+	def get_miss_rate(self, read_operations_only=False):
+		if read_operations_only:
+			if self.reads == 0:
+				return 0
+			miss_rate = self.read_misses / self.reads
+			return round(miss_rate, 6)
+
+		if self.reads + self.writes == 0:
+			return 0
+		miss_rate = (self.read_misses + self.write_misses) / (self.reads + self.writes)
+		return round(miss_rate, 6)
