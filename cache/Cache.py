@@ -2,7 +2,7 @@ import math
 from cache.StorageBlock import StorageBlock
 
 class Cache:
-	def __init__(self, size, associativity, block_size, PolicyClass, inclusion_property, lower_cache=None, upper_cache=None, debugger=None):
+	def __init__(self, size, associativity, block_size, policy, inclusion_property, lower_cache=None, upper_cache=None, debugger=None):
 		self.num_sets = size // (associativity * block_size)
 		# self.memory = [[] for _ in range(self.num_sets)]
 		self.memory = [[StorageBlock(debugger) for _ in range(associativity)]
@@ -13,7 +13,7 @@ class Cache:
 		self.size = size
 		self.associativity = associativity
 		self.block_size = block_size
-		self.policy = PolicyClass(self.num_sets, associativity)
+		self.policy = policy
 		self.inclusion_property = inclusion_property
 		self.debugger = debugger
 		if debugger:
@@ -84,7 +84,7 @@ class Cache:
 				return block
 
 		# no invalid blocks; evict
-		block = self.policy.evict(index)
+		block = self.policy.evict(self.memory[index])
 		self.debugger.victim(block)
 		self.flush(block)
 		block.valid = False
@@ -128,7 +128,7 @@ class Cache:
 		self.increment_counters(operation=operation)
 
 		# block exists, cache hit
-        # no eviction occurs here
+		# no eviction occurs here
 		block = self.search(index, tag)
 		if block:
 			self.debugger.log("hit")

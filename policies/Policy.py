@@ -1,17 +1,20 @@
-from collections import deque
-
 class Policy:
-    def __init__(self, num_sets, associativity):
-        pass
+	def __init__(self, counter):
+		self.counter = counter
 
-    def insert(self, block):
-        raise NotImplementedError("Not implemented!")
+	# add necessary metadata to the block
+	def insert(self, block):
+		raise NotImplementedError("Not implemented!")
 
-    def remove(self, block):
-        raise NotImplementedError("Not implemented!")
+	# update metadata on access
+	def update(self, block):
+		raise NotImplementedError("Not implemented!")
 
-    def update(self, block):
-        raise NotImplementedError("Not implemented!")
+	# remove block metadata as needed
+	def remove(self, block):
+		raise NotImplementedError("Not implemented!")
 
-    def evict(self, index):
-        raise NotImplementedError("Not implemented!")
+	# use metadata to select a block for eviction
+	# this should only be called if all blocks in the set are valid
+	def evict(self, cache_set):
+		raise NotImplementedError("Not implemented!")

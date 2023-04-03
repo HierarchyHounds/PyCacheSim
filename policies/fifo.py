@@ -1,22 +1,29 @@
-from collections import deque
-from .Policy import Policy
+import math
+
+from policies.Policy import Policy
 
 class FIFO(Policy):
-    def __init__(self, num_sets, associativity):
-        super().__init__(num_sets, associativity)
-        self.cache_sets = [deque() for _ in range(num_sets)]
+	def __init__(self, counter):
+		super().__init__(counter)
 
-    def evict(self, index):
-        evicted_block = self.cache_sets[index].popleft()
-        return evicted_block
+	# track insertion time
+	def insert(self, block):
+		block.metadata['inserted'] = self.counter.get()
 
-    def insert(self, block):
-        index = block.index
-        self.cache_sets[index].append(block)
+	# in case of FIFO, do nothing
+	def update(self, block):
+		pass
 
-    def remove(self, block):
-        index = block.index
-        self.cache_sets[index].remove(block)
+	def remove(self, block):
+		pass
 
-    def update(self, block):
-        pass  # No action is needed for FIFO on access
+	# evict the block with the lowest insertion time
+	def evict(self, cache_set):
+		min_inserted = math.inf
+		evicted_block = None
+		for block in cache_set:
+			inserted = block.metadata['inserted']
+			if inserted < min_inserted:
+				min_inserted = inserted
+				evicted_block = block
+		return evicted_block

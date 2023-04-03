@@ -6,6 +6,7 @@ class StorageBlock(object):
 		self.dirty = False
 		self.valid = False
 		self.debugger = debugger
+		self.metadata = {}
 
 	def set_dirty(self):
 		self.dirty = True

@@ -2,6 +2,7 @@ import argparse
 import os
 from cache.Cache import Cache
 from policies import fifo, lru, optimal
+from utils.Counter import Counter
 from utils.Debugger import Debugger
 
 def main():
@@ -18,6 +19,9 @@ def main():
 
 	args = parser.parse_args()
 	Debugger.debug = args.debug
+
+	counter = Counter()
+	debugger = Debugger()
 
 	# check if L1_SIZE, L1_ASSOC, L2_SIZE, L2_ASSOC are all positive integers
 	if args.l1_size <= 0 or args.l1_assoc <= 0 or args.l2_size < 0 or args.l2_assoc < 0:
@@ -50,30 +54,32 @@ def main():
 
 	# `REPLACEMENT_POLICY`:\tPositive integer. 0 for LRU, 1 for FIFO, 2 for optimal.
 	# Create the appropriate replacement policy
-	PolicyClass = None
+	policy = None
 	if args.replacement_policy == 0:
-		PolicyClass = lru.LRU
+		policy = lru.LRU(counter)
+		policyName = "LRU"
 	elif args.replacement_policy == 1:
-		PolicyClass = fifo.FIFO
+		policy = fifo.FIFO(counter)
+		policyName = "FIFO"
 	elif args.replacement_policy == 2:
-		PolicyClass = optimal.Optimal
+		policy = optimal.Optimal(counter, trace_file=args.trace_file, debugger=Debugger(prefix="OPTIMAL"))
+		policyName = "optimal"
 
-	args.policyClassName = Debugger.policyClassName = PolicyClass.__name__
+	args.policyClassName = Debugger.policyClassName = policyName
 
 	print_config(args)
 
 	# Create L1 and L2 cache instances with the appropriate configurations
-	l1_cache = Cache(args.l1_size, args.l1_assoc, args.blocksize, PolicyClass, args.inclusion_property, debugger=Debugger(prefix="L1"))
+	l1_cache = Cache(args.l1_size, args.l1_assoc, args.blocksize, policy, args.inclusion_property, debugger=Debugger(prefix="L1"))
 	l2_cache = None
 	if args.l2_size > 0:
-		l2_cache = Cache(args.l2_size, args.l2_assoc, args.blocksize, PolicyClass, args.inclusion_property, upper_cache=l1_cache, debugger=Debugger(prefix="L2"))
-
-	debugger = Debugger()
+		l2_cache = Cache(args.l2_size, args.l2_assoc, args.blocksize, policy, args.inclusion_property, upper_cache=l1_cache, debugger=Debugger(prefix="L2"))
 
 	# Access the cache with L1 and L2 instances
 	with open(args.trace_file, "r") as trace_file:
 		for line in trace_file:
 			operation, address = line.split()
+			counter.increment()
 			debugger.operationStart(operation, address)
 			l1_cache.access(operation, int(address, 16))
 
