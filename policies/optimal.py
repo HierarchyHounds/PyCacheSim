@@ -1,20 +1,23 @@
+import math
 from collections import defaultdict
 from policies.Policy import Policy
 
 class Optimal(Policy):
-	def __init__(self, counter, trace_file, debugger=None):
+	def __init__(self, counter, trace_file, block_size, debugger=None):
 		super().__init__(counter)
-		self.future = self.read_trace_file(trace_file)
 		self.debugger = debugger
+		offset_bits = int(math.log2(block_size))
+		self.future = self.read_trace_file(trace_file, offset_bits)
 
-	def read_trace_file(self, trace_file):
+	def read_trace_file(self, trace_file, offset_bits):
 		future = defaultdict(list)
 
 		with open(trace_file, "r") as file:
 			for line_number, line in enumerate(file):
-				if len(line.strip()) == 0: continue
+				if len(line.strip()) == 0:
+					continue
 				operation, address = line.strip().split(" ")
-				address = int(address, 16)
+				address = int(address, 16) >> offset_bits << offset_bits
 				future[address].append(line_number)
 
 		return future
@@ -24,8 +27,8 @@ class Optimal(Policy):
 
 	def update(self, block):
 		current_counter = self.counter.get()
-		future = self.future[block.address]
-		while future and future[0] <= current_counter:
+		future = self.future[block.block_address]
+		while future and future[0] < current_counter:
 			future.pop(0)
 
 	def remove(self, block):
@@ -38,13 +41,14 @@ class Optimal(Policy):
 
 		for block in cache_set:
 			self.update(block)
-			future = self.future[block.address]
+			future = self.future[block.block_address]
 
-			# print the first 10 elements of future # TODO: remove
-			if len(future) > 10:
-				self.log(f"Address: {block.address:x}, Future: {future[:10]}")
-			else:
-				self.log(f"Address: {block.address:x}, Future: {future}")
+			# # print the first 10 elements of future # TODO: remove
+			# if len(future) > 10:
+			# 	self.log(
+			# 		f"Address: {block.block_address:x}, Future: {future[:10]}")
+			# else:
+			# 	self.log(f"Address: {block.block_address:x}, Future: {future}")
 
 			# if a block is never needed again, evict it
 			if not future:
@@ -59,5 +63,6 @@ class Optimal(Policy):
 		return evicted_block
 
 	def log(self, *args):
-		if not self.debugger: return
+		if not self.debugger:
+			return
 		self.debugger.log(*args)

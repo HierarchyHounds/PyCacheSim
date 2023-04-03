@@ -124,7 +124,8 @@ class Cache:
 
 	def access(self, operation, address):
 		index, tag = self.calculate_index_tag(address)
-		self.debugger.operation(operation, address, tag, index)
+		block_address = address >> self.offset_bits  << self.offset_bits
+		self.debugger.operation(operation, block_address, tag, index)
 		self.increment_counters(operation=operation)
 
 		# block exists, cache hit
@@ -152,7 +153,7 @@ class Cache:
 				self.increment_counters(memory_access=True)
 
 			# block loaded; now add it to cache
-			block.store(address, index, tag)
+			block.store(address, index, tag, block_address)
 			self.policy.insert(block)
 			self.debugger.policyUpdate()
 

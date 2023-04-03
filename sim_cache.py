@@ -21,7 +21,7 @@ def main():
 	Debugger.debug = args.debug
 
 	counter = Counter()
-	debugger = Debugger()
+	debugger = Debugger(counter=counter)
 
 	# check if L1_SIZE, L1_ASSOC, L2_SIZE, L2_ASSOC are all positive integers
 	if args.l1_size <= 0 or args.l1_assoc <= 0 or args.l2_size < 0 or args.l2_assoc < 0:
@@ -62,7 +62,7 @@ def main():
 		policy = fifo.FIFO(counter)
 		policyName = "FIFO"
 	elif args.replacement_policy == 2:
-		policy = optimal.Optimal(counter, trace_file=args.trace_file, debugger=Debugger(prefix="OPTIMAL"))
+		policy = optimal.Optimal(counter, trace_file=args.trace_file, block_size=args.blocksize, debugger=Debugger(prefix="OPTIMAL"))
 		policyName = "optimal"
 
 	args.policyClassName = Debugger.policyClassName = policyName

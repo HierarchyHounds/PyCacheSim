@@ -18,10 +18,11 @@ class StorageBlock(object):
 		self.debugger.invalidated(self, writeDirectlyToMemory)
 		return self
 
-	def store(self, address, index, tag):
+	def store(self, address, index, tag, block_address):
 		self.address = address
 		self.index = index
 		self.tag = tag
 		self.dirty = False
 		self.valid = True
+		self.block_address = block_address
 		return self
