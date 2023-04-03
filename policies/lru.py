@@ -1,4 +1,5 @@
 import math
+import time
 
 from policies.Policy import Policy
 
@@ -8,11 +9,11 @@ class LRU(Policy):
 
 	# add required metadata to the block
 	def insert(self, block):
-		block.metadata['last_access'] = self.counter.get()
+		block.metadata['last_access'] = time.time()
 
 	# update last_access
 	def update(self, block):
-		block.metadata['last_access'] = self.counter.get()
+		block.metadata['last_access'] = time.time()
 
 	def remove(self, block):
 		pass
