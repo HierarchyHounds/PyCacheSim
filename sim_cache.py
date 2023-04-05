@@ -1,7 +1,7 @@
 import argparse
 import os
 from cache.Cache import Cache
-from policies import fifo, lru, optimal
+from policies import fifo, lru, optimal, lfu, lifo, mru
 from utils.Counter import Counter
 from utils.Debugger import Debugger
 
@@ -12,10 +12,11 @@ def main():
 	parser.add_argument("l1_assoc", type=int, help="L1 set associativity (1 is direct-mapped)")
 	parser.add_argument("l2_size", type=int, help="L2 cache size in bytes (0 for no L2 cache)")
 	parser.add_argument("l2_assoc", type=int, help="L2 set associativity (1 is direct-mapped)")
-	parser.add_argument("replacement_policy", type=int, choices=[0, 1, 2], help="Replacement policy (0 for LRU, 1 for FIFO, 2 for optimal)")
+	parser.add_argument("replacement_policy", type=int, choices=[0, 1, 2, 3, 4, 5], help="Replacement policy (0 for LRU, 1 for FIFO, 2 for optimal)")
 	parser.add_argument("inclusion_property", type=int, choices=[0, 1], help="Inclusion property (0 for non-inclusive, 1 for inclusive)")
 	parser.add_argument("trace_file", type=str, help="Full name of trace file including any extensions")
 	parser.add_argument("--debug", action=argparse.BooleanOptionalAction, help="Generate debug output (default: False)")
+	parser.add_argument("--skip-contents", action=argparse.BooleanOptionalAction, help="Skip printing contents of cache (default: False)")
 
 	args = parser.parse_args()
 	Debugger.debug = args.debug
@@ -64,6 +65,18 @@ def main():
 	elif args.replacement_policy == 2:
 		policy = optimal.Optimal(counter, trace_file=args.trace_file, block_size=args.blocksize, debugger=Debugger(prefix="OPTIMAL"))
 		policyName = "optimal"
+	elif args.replacement_policy == 3:
+		policy = lfu.LFU(counter)
+		policyName = "LFU"
+	elif args.replacement_policy == 4:
+		policy = mru.MRU(counter)
+		policyName = "MRU"
+	elif args.replacement_policy == 5:
+		policy = lifo.LIFO(counter)
+		policyName = "LIFO"
+	else:
+		print("Invalid replacement policy")
+		exit(1)
 
 	args.policyClassName = Debugger.policyClassName = policyName
 
@@ -78,10 +91,17 @@ def main():
 	# Access the cache with L1 and L2 instances
 	with open(args.trace_file, "r") as trace_file:
 		for line in trace_file:
+			# trim line and skip empty lines
+			line = line.strip()
+			if not line:
+				continue
 			operation, address = line.split()
 			counter.increment()
 			debugger.operationStart(operation, address)
 			l1_cache.access(operation, int(address, 16))
+
+	if(not args.skip_contents):
+		print_contents(l1_cache, l2_cache)
 
 	print_results(l1_cache, l2_cache)
 
@@ -103,16 +123,16 @@ def print_config(args):
 	print("INCLUSION PROPERTY:\t", inclusion_property_name)
 	print("trace_file:\t\t", trace_file_basename)
 
-def print_results(l1_cache, l2_cache):
-	memory_traffic = l1_cache.memory_accesses
-
+def print_contents(l1_cache, l2_cache):
 	print("===== L1 contents =====")
 	print(l1_cache.get_contents(), end="")
 
 	if l2_cache:
-		memory_traffic += l2_cache.memory_accesses
 		print("===== L2 contents =====")
 		print(l2_cache.get_contents(), end="")
+
+def print_results(l1_cache, l2_cache):
+	memory_traffic = l1_cache.memory_accesses
 
 	print("===== Simulation results (raw) =====")
 	print(f"a. number of L1 reads:\t\t{l1_cache.reads}")
@@ -123,6 +143,7 @@ def print_results(l1_cache, l2_cache):
 	print(f"f. number of L1 writebacks:\t{l1_cache.writebacks}")
 
 	if l2_cache:
+		memory_traffic += l2_cache.memory_accesses
 		print(f"g. number of L2 reads:\t\t{l2_cache.reads}")
 		print(f"h. number of L2 read misses:\t{l2_cache.read_misses}")
 		print(f"i. number of L2 writes:\t\t{l2_cache.writes}")
