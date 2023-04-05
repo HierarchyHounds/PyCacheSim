@@ -111,7 +111,7 @@ class Cache:
 	def flush(self, block, writeDirectlyToMemory=False):
 		if not block.dirty: return block
 
-		self.increment_counters(writeback=True)
+		self.increment_counters(writeback=(not writeDirectlyToMemory))
 
 		# if lower cache exists, write to it unless writeDirectlyToMemory flag is set
 		if self.lower_cache and not writeDirectlyToMemory:
