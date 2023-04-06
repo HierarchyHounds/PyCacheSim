@@ -14,3 +14,7 @@ class Counter:
 
 	def get(self):
 		return self.value
+
+	def reset(self):
+		self.value = 0
+		return self
